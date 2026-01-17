@@ -14,6 +14,7 @@ import app.aaps.plugins.insulin.di.InsulinModule
 import app.aaps.plugins.main.di.PluginsModule
 import app.aaps.plugins.source.di.SourceModule
 import app.aaps.plugins.sync.di.OpenHumansModule
+import app.aaps.plugins.pebble.di.PebbleModule
 import app.aaps.plugins.sync.di.SyncModule
 import app.aaps.pump.common.di.PumpCommonModule
 import app.aaps.pump.common.di.RileyLinkModule
@@ -61,6 +62,7 @@ import javax.inject.Singleton
         ImplementationModule::class,
         InsulinModule::class,
         OpenHumansModule::class,
+        PebbleModule::class,
         PluginsModule::class,
         SharedImplModule::class,
         LoggerModule::class,

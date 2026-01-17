@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pebble">Pebble</string>
+    <string name="pebble_short">Pebble</string>
+    <string name="pebble_description">Synchronize data with Pebble smartwatches</string>
+    <string name="pebble_target_uuid_hint">Target Pebble App UUID</string>
+    <string name="pebble_save">Save</string>
+    <string name="pebble_invalid_uuid">Invalid UUID format</string>
+    <string name="pebble_saved">Settings saved</string>
+</resources>

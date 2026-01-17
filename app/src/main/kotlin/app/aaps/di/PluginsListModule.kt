@@ -50,6 +50,7 @@ import app.aaps.plugins.source.XdripSourcePlugin
 import app.aaps.plugins.sync.garmin.GarminPlugin
 import app.aaps.plugins.sync.nsclient.NSClientPlugin
 import app.aaps.plugins.sync.nsclientV3.NSClientV3Plugin
+import app.aaps.plugins.pebble.PebblePlugin
 import app.aaps.plugins.sync.openhumans.OpenHumansUploaderPlugin
 import app.aaps.plugins.sync.tidepool.TidepoolPlugin
 import app.aaps.plugins.sync.tizen.TizenPlugin
@@ -336,6 +337,12 @@ abstract class PluginsListModule {
     @IntoMap
     @IntKey(364)
     abstract fun bindXdripPlugin(plugin: XdripPlugin): PluginBase
+
+    @Binds
+    @AllConfigs
+    @IntoMap
+    @IntKey(365)
+    abstract fun bindPebblePlugin(plugin: PebblePlugin): PluginBase
 
     @Binds
     @NotNSClient

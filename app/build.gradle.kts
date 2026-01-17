@@ -173,6 +173,7 @@ dependencies {
     implementation(project(":plugins:constraints"))
     implementation(project(":plugins:insulin"))
     implementation(project(":plugins:main"))
+    implementation(project(":plugins:pebble"))
     implementation(project(":plugins:sensitivity"))
     implementation(project(":plugins:smoothing"))
     implementation(project(":plugins:source"))
