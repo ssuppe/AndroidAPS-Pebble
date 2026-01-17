@@ -1,150 +1,139 @@
 # ANDROIDAPS — Pebble Plugin Implementation — `todo.md`
 
 **TL;DR**
-Implement a new `plugins/pebble` module to uni-directionally sync loop data (BG, IOB, COB) to Pebble smartwatches via `PebbleKit`, mirroring the `WearPlugin` trigger architecture.
+Implement a new `plugins/pebble` module to uni-directionally sync loop data (BG, IOB, COB) to Pebble smartwatches via `PebbleKit`, with a user-configurable UUID.
 
-## Invariants (do not change)
-1.  **UUID Consistency**: The UUID used in `PebbleKit.sendDataToPebble` **must** match the UUID defined in the target Pebble Watchapp's `package.json`.
-2.  **Non-Blocking Transport**: All `PebbleKit` interactions (sending data, checking connection) must occur on background threads (IO Scheduler) to prevent Main Thread ANRs.
-3.  **One-Way Sync (MVP)**: The implementation is strictly Phone-to-Watch. No command reception (Watch-to-Phone) is supported in this iteration.
-4.  **License Compliance**: Must respect AAPS licensing and PebbleKit distribution rights.
+## Invariants
+1.  **Thread Safety**: All `PebbleKit` interactions (sending data) must occur on `Schedulers.io()` to avoid Main Thread blocking.
+2.  **UUID Consistency**: The target Watchapp UUID must be configurable by the user to support different watchfaces, defaulting to `54D3008F-0E46-46AC-9634-93D0D7130000`.
+3.  **One-Way Sync (MVP)**: Strictly Phone-to-Watch. No command reception (Watch-to-Phone) logic is required for this iteration.
 
 ## Assumptions & Scope
-*   **Assumption**: Target Pebble Watchapp UUID is `54D3008F-0E46-46AC-9634-93D0D7130000` (Placeholder `{{PEBBLE_APP_UUID}}`).
-*   **Assumption**: `com.getpebble:pebblekit:4.0.1` is available in Maven Central or local libs.
-*   **Assumption**: `EventLoopUpdateGui` (via RxBus) is the canonical trigger for fresh loop data, consistent with `WearPlugin`.
+*   **Assumption**: `com.getpebble:pebblekit:4.0.1` is resolvable.
+*   **Assumption**: `EventLoopUpdateGui` (via RxBus) is the canonical trigger for fresh loop data (mirroring `WearPlugin`).
 *   **Scope**:
-    *   Creation of `:plugins:pebble` module.
-    *   Transmission of BG, Trend, IOB, COB, and Timestamp.
-    *   Integration into AAPS Config Builder and Tab interface.
-*   **Out of Scope**: Installing the watchface, Bi-directional communication (Bolus/Wizard), Historical graph data.
+    *   Module creation (`:plugins:pebble`).
+    *   Transmission of BG, Trend, IOB, COB, Timestamp.
+    *   Configuration UI (Tab) allowing UUID editing and connection status viewing.
+*   **Out of Scope**: Installing watchfaces, history graphs, bi-directional commands.
 
 ## Objectives
-1.  **Isolation**: Deliver functionality as a standalone Gradle module (`:plugins:pebble`) with minimal core intrusion.
-2.  **Reliability**: Ensure `PebbleKit` communication handles connection failures gracefully without crashing AAPS.
-3.  **Efficiency**: Throttle updates to prevent watch battery drain (max 1 update per minute).
-4.  **Visibility**: Provide a configuration UI (Plugin Tab) showing connection status and "Last Sent" timestamp.
+1.  **Isolation**: Functionality exists entirely within `:plugins:pebble`.
+2.  **Flexibility**: Users can change the target UUID in the plugin settings without recompiling.
+3.  **Reliability**: Graceful handling of connection failures (no crashes).
+4.  **Efficiency**: Throttle updates (max 1 per minute) to preserve battery.
 
 ## Risks & Mitigations
-*   **Risk**: `PebbleKit` dependency causes build issues or runtime crashes on modern Android (12+).
-    *   **Mitigation**: Wrap all `PebbleKit` calls in `try-catch` blocks specifically handling `SecurityException` (Bluetooth permissions) and `IllegalArgumentException`.
-*   **Risk**: Data overload (Dictionary size limit).
-    *   **Mitigation**: Strictly limit payload to defined keys. Do not serialize full JSON objects.
-*   **Risk**: Main thread blocking during IPC.
-    *   **Mitigation**: Enforce `RxBus.observeOn(Schedulers.io())` for the event consumer.
+*   **Risk**: Invalid User Input for UUID causes crashes.
+    *   **Mitigation**: Validate UUID string format in the UI before saving to `SharedPreferences`. Wrap `UUID.fromString()` in try-catch during send.
+*   **Risk**: `PebbleKit` dependency issues on Android 14+.
+    *   **Mitigation**: Wrap generic `PebbleKit` calls in try-catch blocks to handle potential `SecurityException` or `IllegalArgumentException`.
+*   **Risk**: R8/ProGuard stripping `PebbleKit`.
+    *   **Mitigation**: Add consumer ProGuard rules if the library doesn't include them.
 
-## Method Outline (idea → mechanism → trade-offs → go/no-go)
+## Method Outline
 1.  **Mechanism**:
-    *   Create `PebblePlugin` implementing `IPlugin` and `ConfigBuilderFunction`.
-    *   Subscribe to `EventLoopUpdateGui`.
-    *   On event: Check connection -> Gather Data (`StaticInjector` / `EnrichedLoopData`) -> Map to `PebbleDictionary` -> Send via `PebbleKit`.
-2.  **Trade-offs**:
-    *   *Polling vs Event*: Event-based (`EventLoopUpdateGui`) is chosen to sync with UI updates, matching user expectation.
-    *   *Data Precision*: Doubles (IOB/COB) will be scaled to Integers (x100) or Strings for display, as `PebbleDictionary` primarily supports Int/String/Bytes.
-3.  **Go/No-Go**: **Go**. The plugin architecture allows safe experimentation without destabilizing the core.
+    *   `PebblePlugin` subscribes to `EventLoopUpdateGui`.
+    *   On Event: Check `isEnabled` -> Gather Data (`OverviewData`, `IobCobCalculator`) -> Map to `PebbleDictionary`.
+    *   Fetch Target UUID from `SharedPreferences`.
+    *   Send via `PebbleKit`.
+2.  **UI**:
+    *   `PebbleFragment` provides a layout to view status and edit the Target UUID.
 
 ## Implementation Notes
 *   **Dependencies**:
     *   `implementation("com.getpebble:pebblekit:4.0.1")`
     *   `implementation(project(":core:interfaces"))`
     *   `implementation(project(":core:data"))`
+    *   `implementation(project(":shared:impl"))`
+    *   `implementation(project(":core:ui"))`
 *   **Data Contract (`PebbleKeys`)**:
-    *   `0`: BG (String or Int)
+    *   `0`: BG (Int)
     *   `1`: Trend (String/Int)
     *   `2`: IOB (Int, scaled x100)
     *   `3`: COB (Int)
     *   `4`: Timestamp (Int/Long)
-*   **Attach Point**: `app/src/main/java/.../ConfigBuilder.kt` (or equivalent DI module) to register the plugin.
+*   **Preferences Keys**:
+    *   `pebble_target_uuid`: String.
 
 ## Acceptance Gates
-*   [ ] Module `:plugins:pebble` compiles and tests pass.
-*   [ ] "Pebble" appears in the Config Builder plugin list.
-*   [ ] Enabling the plugin adds a "Pebble" tab to the main pager.
-*   [ ] `EventLoopUpdateGui` triggers a log entry in `PebblePlugin`.
-*   [ ] Mocked `PebbleKit` receives a populated `PebbleDictionary` with correct BG/IOB values.
+*   [ ] Module `:plugins:pebble` compiles.
+*   [ ] "Pebble" appears in Config Builder.
+*   [ ] Enabling plugin adds "Pebble" tab.
+*   [ ] User can edit UUID in the tab; invalid UUIDs are rejected/not saved.
+*   [ ] `EventLoopUpdateGui` triggers data send to the configured UUID.
+*   [ ] `PebbleKit` receives correct BG/IOB values in mock tests.
 
 ## "Make-sure-you" Checklist
-*   [ ] **Do** check `PebbleKit.isWatchConnected(context)` before doing work.
-*   [ ] **Do** scale floating point numbers (IOB 1.5 -> 150) before adding to dictionary if using `addInt32`.
-*   [ ] **Do not** use `android.util.Log` directly; use `AAPSLogger`.
-*   [ ] **Do** handle `null` values from `OverviewData` (e.g., if no sensor is connected).
-*   [ ] **Do** add `<uses-permission android:name="com.getpebble.provider.ACCESS" />` (or equivalent if required by SDK) to manifest.
+*   [ ] **Do** validate the UUID string in the UI (EditText watcher or Save button).
+*   [ ] **Do** use `SharedPreference` default value `54D3008F-0E46-46AC-9634-93D0D7130000` if the pref is empty.
+*   [ ] **Do** scale floats (IOB 1.5 -> 150) for integer transport.
+*   [ ] **Do** wrap `PebbleKit` calls in `Observable.fromCallable { ... }.subscribeOn(Schedulers.io())`.
 
 ## Project hygiene prep
-1.  **Git**: Create branch `feat/plugin-pebble`.
-2.  **Filesystem**: Create directory structure `plugins/pebble/src/main/kotlin/app/aaps/plugins/pebble`.
-3.  **Gradle**: Add `:plugins:pebble` to `settings.gradle.kts` and `app/build.gradle.kts`.
+1.  **Git**: Branch `feat/plugin-pebble`.
+2.  **Structure**: Create `plugins/pebble/src/main/kotlin/...` and `plugins/pebble/src/main/res/...`.
+3.  **Gradle**: Update `settings.gradle.kts` and `app/build.gradle.kts`.
 
 ## In-depth test plan
 
-### 1. Unit Testing (`plugins/pebble/src/test/...`)
+### 1. Unit Tests (`plugins/pebble/src/test/...`)
 *   **`PebbleDataMapperTest`**:
-    *   *Scenario*: Input `EnrichedLoopData` with BG=120, IOB=2.35.
-    *   *Check*: `PebbleDictionary` contains key `0` value `120`, key `2` value `235` (assuming x100 scaling).
-    *   *Scenario*: Input `EnrichedLoopData` with `null` BG.
-    *   *Check*: Dictionary contains `0` value `0` or does not contain key `0`.
-*   **`PebblePluginTest`**:
-    *   *Scenario*: `EventLoopUpdateGui` received but `isEnabled` is false.
-    *   *Check*: `PebbleKit.sendDataToPebble` is **not** called.
+    *   Verify BG, IOB, COB mapping.
+    *   Verify scaling logic (e.g., IOB 1.25 -> 125).
+    *   Verify null handling (BG null -> 0 or omit key).
+*   **`UUIDLogicTest`**:
+    *   Test `UUID.fromString` robustness with whitespace/invalid chars.
 
 ### 2. Integration Checks
-*   **ConfigBuilder**: Verify the plugin shows up in the list and persists its state (Enabled/Disabled) across restarts.
-*   **Tab Rendering**: Verify the fragment loads without crashing when the plugin is enabled.
+*   **UI Flow**: Open Tab -> Change UUID -> Save -> Restart App -> Verify UUID persisted.
+*   **Transport**: Log verification that `sendDataToPebble` is called with the *new* UUID after it is changed.
 
 ## In-depth engineering plan
 
 ### Phase 1: Module Setup
-1.  Create `plugins/pebble/build.gradle.kts`:
-    ```kotlin
-    plugins {
-        id("com.android.library")
-        id("kotlin-android")
-    }
-    dependencies {
-        implementation(project(":core:interfaces"))
-        implementation(project(":core:data"))
-        implementation(project(":shared:impl")) // For RxBus
-        implementation("com.getpebble:pebblekit:4.0.1")
-        // ... test dependencies
-    }
-    ```
-2.  Update `settings.gradle.kts` (if manual include required) and `app/build.gradle.kts` to `implementation(project(":plugins:pebble"))`.
+1.  **Create Directory**: `plugins/pebble`.
+2.  **Build Script** (`plugins/pebble/build.gradle.kts`):
+    *   Plugins: `android-library`, `kotlin-android`.
+    *   Deps: `core:interfaces`, `core:data`, `shared:impl`, `core:ui`, `pebblekit`.
+3.  **Registration**:
+    *   Add `include(":plugins:pebble")` to `settings.gradle.kts`.
+    *   Add `implementation(project(":plugins:pebble"))` to `app/build.gradle.kts`.
 
-### Phase 2: Data & Mapper
-1.  Create `app.aaps.plugins.pebble.data.PebbleKeys`: Define integer constants matching the JSON contract.
-2.  Create `app.aaps.plugins.pebble.util.PebbleDataMapper`:
-    *   `fun map(data: EnrichedLoopData): PebbleDictionary`
-    *   Implement scaling logic for IOB/COB.
-    *   Handle BG unit conversion if necessary (AAPS usually works in mg/dl internally, normalize here).
+### Phase 2: Data & Logic
+1.  **Keys**: `object PebbleKeys { const val BG = 0 ... }`.
+2.  **Mapper**: `class PebbleDataMapper @Inject constructor()`.
+    *   `fun map(data: EnrichedData): PebbleDictionary`.
+3.  **Plugin Class**: `class PebblePlugin @Inject constructor(...) : IPlugin, ConfigBuilderFunction`.
+    *   Deps: `SharedPreferences`, `RxBus`, `OverviewData`, `IobCobCalculator`.
+    *   `initialize()`: Subscribe to `EventLoopUpdateGui`.
+    *   `onEvent`:
+        ```kotlin
+        val uuidStr = prefs.getString("pebble_target_uuid", DEFAULT_UUID)
+        val uuid = UUID.fromString(uuidStr) // Wrap in try/catch fallback
+        val dict = mapper.map(...)
+        PebbleKit.sendDataToPebble(context, uuid, dict)
+        ```
 
-### Phase 3: Plugin Implementation
-1.  Create `app.aaps.plugins.pebble.PebblePlugin`:
-    *   Annotate `@Singleton`? (Check DI pattern).
-    *   Inherit `PluginBase`, `IPlugin`, `ConfigBuilderFunction`.
-    *   Inject `RxBus`, `AAPSLogger`, `Context`.
-2.  **Initialization**:
-    *   In `initialize()`, `rxBus.register(EventLoopUpdateGui::class.java)`.
-3.  **Event Handling**:
-    *   `onEvent(EventLoopUpdateGui)`:
-        *   `if (!isEnabled) return`
-        *   `if (!PebbleKit.isWatchConnected(context)) return`
-        *   `val dict = mapper.map(gatherData())`
-        *   `PebbleKit.sendDataToPebble(context, UUID, dict)`
-        *   `logger.debug(TAG, "Sent update to Pebble")`
+### Phase 3: UI Implementation
+1.  **Resources**:
+    *   `res/values/strings.xml`: Labels for "Target UUID", "Save", "Connection Status".
+    *   `res/layout/pebble_fragment.xml`: `LinearLayout` with `TextView` (status), `EditText` (UUID), `Button` (Save).
+2.  **Fragment**: `class PebbleFragment : Fragment()`.
+    *   Inject `SharedPreferences`.
+    *   `onCreateView`: Inflate layout.
+    *   `onViewCreated`:
+        *   Load UUID from prefs -> Set to EditText.
+        *   Save Button: Validate UUID format -> Put to Prefs -> Show Toast.
+3.  **Linkage**: Return `PebbleFragment` in `PebblePlugin.getTab()`.
 
-### Phase 4: UI Components
-1.  Create `app.aaps.plugins.pebble.ui.PebbleFragment`:
-    *   Simple layout with `TextView`s for Connection Status and Last Update time.
-    *   Subscribe to updates (can reuse `EventLoopUpdateGui` or a local event) to refresh the view.
-2.  Update `PebblePlugin`:
-    *   Implement `getTab()` returning `PebbleFragment`.
+### Phase 4: Integration
+1.  **ConfigBuilder**:
+    *   Open `app/src/main/java/app/aaps/plugins/main/ConfigBuilder.kt` (or similar).
+    *   Add `PebblePlugin` to the list of plugins.
+2.  **Manifest**:
+    *   Ensure `plugins/pebble/src/main/AndroidManifest.xml` exists (package `app.aaps.plugins.pebble`).
 
-### Phase 5: Registration
-1.  Locate `ConfigBuilder` logic (likely in `plugins/configuration` or `app` module).
-2.  Add `PebblePlugin` to the list of available plugins.
-3.  Ensure Dependency Injection (Dagger) knows about `PebblePlugin`.
-
-### Phase 6: Final Polish
-1.  Review `AndroidManifest.xml` (auto-merged) for any permission requirements.
-2.  Run `./gradlew :plugins:pebble:testDebugUnitTest`.
-3.  Build full app and verify no linkage errors.
+### Phase 5: Final Verification
+1.  **ProGuard**: Check if `pebblekit` needs `-keep class com.getpebble.android.kit.** { *; }`. Add to consumer rules if needed.
+2.  **Compile & Run**: Verify no build errors and Plugin Tab loads.
