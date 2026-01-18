@@ -48,6 +48,9 @@ class PebblePluginAckTest {
         // Mock the transport to return a dummy receiver so the plugin stores it
         whenever(transport.registerAckHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
         whenever(transport.registerNackHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
+        
+        // Default to connected for existing tests
+        whenever(transport.isWatchConnected(any())).thenReturn(true)
 
         plugin = PebblePlugin(
             aapsLogger,

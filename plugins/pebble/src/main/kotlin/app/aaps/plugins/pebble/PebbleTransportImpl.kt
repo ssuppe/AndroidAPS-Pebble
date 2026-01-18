@@ -56,4 +56,13 @@ class PebbleTransportImpl @Inject constructor(
             aapsLogger.warn(LTag.PEBBLE, "PebbleTransportImpl: Error unregistering receiver: {}", e.message)
         }
     }
+
+    override fun isWatchConnected(context: Context): Boolean {
+        return try {
+            PebbleKit.isWatchConnected(context)
+        } catch (e: Exception) {
+            aapsLogger.warn(LTag.PEBBLE, "PebbleTransportImpl: Error checking watch connection: {}", e.message)
+            false
+        }
+    }
 }

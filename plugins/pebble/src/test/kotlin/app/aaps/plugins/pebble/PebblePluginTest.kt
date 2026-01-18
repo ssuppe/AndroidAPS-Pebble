@@ -55,6 +55,9 @@ class PebblePluginTest {
 
     @Test
     fun testOnEvent_mapsData_andSendsToTransport() {
+        // Stub connectivity
+        whenever(transport.isWatchConnected(any())).thenReturn(true)
+
         val event = EventLoopUpdateGui()
         whenever(rxBus.toObservable(EventLoopUpdateGui::class.java)).thenReturn(Observable.just(event))
         
@@ -82,6 +85,9 @@ class PebblePluginTest {
 
     @Test
     fun testOnEvent_handlesExceptions_gracefully() {
+        // Stub connectivity
+        whenever(transport.isWatchConnected(any())).thenReturn(true)
+
         val event = EventLoopUpdateGui()
         whenever(rxBus.toObservable(EventLoopUpdateGui::class.java)).thenReturn(Observable.just(event))
         whenever(uuidProvider.getTargetUuid()).thenThrow(RuntimeException("Test Error"))

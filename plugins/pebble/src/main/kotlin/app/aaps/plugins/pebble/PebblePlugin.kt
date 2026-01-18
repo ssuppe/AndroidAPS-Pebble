@@ -100,6 +100,11 @@ class PebblePlugin @Inject constructor(
 
     private fun sendData() {
         try {
+            if (!transport.isWatchConnected(context)) {
+                aapsLogger.warn(LTag.PEBBLE, "PebblePlugin: Watch not connected. Skipping send.")
+                return
+            }
+
             aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Preparing data to send")
             val bgStatus = glucoseStatusProvider.getGlucoseStatusData()
             val iobTotal = iobCobCalculator.calculateIobFromBolus()
@@ -119,7 +124,7 @@ class PebblePlugin @Inject constructor(
             
             aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Sending dictionary to transport for UUID: {}", uuid)
             transport.sendData(context, uuid, dict)
-            aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Data handed off to Pebble App successfully")
+            aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Intent broadcast to Pebble App (Check ACKs for delivery)")
         } catch (e: Exception) {
             aapsLogger.error(LTag.PEBBLE, "PebblePlugin: Failed to send data", e)
             fabricPrivacy.logException(e)
