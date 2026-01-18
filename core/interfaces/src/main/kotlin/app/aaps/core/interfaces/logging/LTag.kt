@@ -18,6 +18,7 @@ enum class LTag(val tag: String, val defaultValue: Boolean = true, val requiresR
     NOTIFICATION("NOTIFICATION"),
     NSCLIENT("NSCLIENT"),
     OHUPLOADER("OHUPLOADER"),
+    PEBBLE("PEBBLE"),
     PUMP("PUMP"),
     PUMPBTCOMM("PUMPBTCOMM", defaultValue = true),
     PUMPCOMM("PUMPCOMM"),

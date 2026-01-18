@@ -5,10 +5,13 @@ import com.getpebble.android.kit.util.PebbleDictionary
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import app.aaps.core.interfaces.logging.AAPSLogger
+import org.mockito.kotlin.mock
 
 class PebbleDataMapperTest {
 
-    private val mapper = PebbleDataMapper()
+    private val logger: AAPSLogger = mock()
+    private val mapper = PebbleDataMapper(logger)
 
     @Test
     fun testMap_populatesBgTrendIobCob() {
@@ -17,19 +20,16 @@ class PebbleDataMapperTest {
             trend = 1,
             iob = 1.5,
             cob = 20.0,
-            time = 123456789L
+            time = 123456789000L // 123456789 seconds in millis
         )
 
         val dict = mapper.map(data)
 
         assertEquals(120, dict.getInteger(PebbleKeys.BG))
         assertEquals(1.toLong(), dict.getInteger(PebbleKeys.TREND))
-        // IOB 1.5 -> 150 (scaled by 100 as per Step 2)
         assertEquals(150.toLong(), dict.getInteger(PebbleKeys.IOB))
-        // COB 20.0 -> 2000 (scaled by 100 as per Step 2, though only IOB was mentioned, usually both are scaled if they are floats)
-        // Wait, Step 2 says "IOB 1.5 -> 150". Doesn't mention COB scaling.
-        // Let's assume COB is also scaled by 100 for precision.
         assertEquals(2000.toLong(), dict.getInteger(PebbleKeys.COB))
+        // Verify time is now in seconds (Step 2 update)
         assertEquals(123456789L, dict.getInteger(PebbleKeys.TIME))
     }
 
@@ -40,7 +40,7 @@ class PebbleDataMapperTest {
             trend = 0,
             iob = 1.234,
             cob = 10.5,
-            time = 123456789L
+            time = 123456789000L
         )
 
         val dict = mapper.map(data)
@@ -56,7 +56,7 @@ class PebbleDataMapperTest {
             trend = null,
             iob = null,
             cob = null,
-            time = 123456789L
+            time = 123456789000L
         )
 
         val dict = mapper.map(data)

@@ -25,8 +25,5 @@ abstract class PebbleModule {
 
     @Module
     class Provide {
-        @Provides
-        @Singleton
-        fun providesSharedPreferences(context: Context) = PreferenceManager.getDefaultSharedPreferences(context)
     }
 }
