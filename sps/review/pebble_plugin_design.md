@@ -144,10 +144,12 @@ data class EnrichedData(
 1. Update `PebbleFragment.kt` to trim input:
    ```kotlin
    val uuidString = binding.pebbleUuid.text.toString().trim()
+   ```
+2. Verify invalid UUID format triggers a toast, and correct UUID persists.
 
 ---
 
-## 13. Addendum — MVP Execution Adjustments
+## 13. Addendum — MVP Execution Adjustments & POC Confirmation
 
 During the implementation of the one-way MVP Pebble watch integration, the following adjustments and clarifications were made from the initial design options:
 
@@ -163,5 +165,7 @@ During the implementation of the one-way MVP Pebble watch integration, the follo
 
 3. **Dynamic UUID Change Test Coverage**:
    - Added `testUuidChange_unregistersAndReRegistersHandlers` to verify that when `pebble_app_uuid` changes, the plugin unregisters its old `BroadcastReceiver` handlers and starts listening on the new UUID. Mocks for the `TargetUuidProvider` and `IPebbleTransport` receivers were added to the test setup to prevent lifecycle crash scenarios during testing.
-   ```
-2. Verify invalid UUID format triggers a toast, and correct UUID persists.
+
+4. **Proof of Concept (POC) Confirmation**:
+   - The Proof of Concept was successfully validated. All unit tests compile and pass via Gradle execution (`./gradlew :plugins:pebble:test`).
+   - The full application builds successfully as part of `:app:assembleFullRelease`, confirming correct code integration, package namespaces, and resource/manifest mapping.
