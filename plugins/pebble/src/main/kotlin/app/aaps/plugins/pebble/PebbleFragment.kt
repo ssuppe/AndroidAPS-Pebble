@@ -37,7 +37,7 @@ class PebbleFragment : DaggerFragment() {
         binding.pebbleUuid.setText(currentUuid)
         
         binding.saveButton.setOnClickListener {
-            val uuidString = binding.pebbleUuid.text.toString()
+            val uuidString = binding.pebbleUuid.text.toString().trim()
             aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: Save button clicked with UUID string: {}", uuidString)
             try {
                 java.util.UUID.fromString(uuidString)

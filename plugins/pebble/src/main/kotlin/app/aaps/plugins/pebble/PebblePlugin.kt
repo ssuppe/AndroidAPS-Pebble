@@ -2,7 +2,9 @@ package app.aaps.plugins.pebble
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.SharedPreferences
 import app.aaps.core.data.plugin.PluginType
+import app.aaps.core.data.model.TrendArrow
 import app.aaps.core.interfaces.iob.GlucoseStatusProvider
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
@@ -32,7 +34,8 @@ class PebblePlugin @Inject constructor(
     private val transport: IPebbleTransport,
     private val uuidProvider: TargetUuidProvider,
     private val mapper: PebbleDataMapper,
-    private val fabricPrivacy: FabricPrivacy
+    private val fabricPrivacy: FabricPrivacy,
+    private val prefs: SharedPreferences
 ) : PluginBase(
     PluginDescription()
         .mainType(PluginType.SYNC)
@@ -47,9 +50,18 @@ class PebblePlugin @Inject constructor(
     private var ackReceiver: BroadcastReceiver? = null
     private var nackReceiver: BroadcastReceiver? = null
 
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "pebble_app_uuid") {
+            aapsLogger.info(LTag.PEBBLE, "PebblePlugin: Target UUID changed. Re-registering receivers.")
+            unregisterReceivers()
+            registerReceivers()
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         aapsLogger.debug(LTag.PEBBLE, "PebblePlugin onStart: Subscribing to EventLoopUpdateGui")
+        prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
         disposable += rxBus
             .toObservable(EventLoopUpdateGui::class.java)
             .observeOn(aapsSchedulers.io)
@@ -66,6 +78,7 @@ class PebblePlugin @Inject constructor(
 
     override fun onStop() {
         aapsLogger.debug(LTag.PEBBLE, "PebblePlugin onStop: Clearing disposables")
+        prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
         disposable.clear()
         unregisterReceivers()
         super.onStop()
@@ -100,21 +113,20 @@ class PebblePlugin @Inject constructor(
 
     private fun sendData() {
         try {
-            if (!transport.isWatchConnected(context)) {
-                aapsLogger.warn(LTag.PEBBLE, "PebblePlugin: Watch not connected. Skipping send.")
+            val isConnected = transport.isWatchConnected(context)
+            aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Connection check: isWatchConnected = {}", isConnected)
+            if (!isConnected) {
                 return
             }
 
             aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: Preparing data to send")
             val bgStatus = glucoseStatusProvider.getGlucoseStatusData()
-            val iobTotal = iobCobCalculator.calculateIobFromBolus()
-            val cobInfo = iobCobCalculator.getCobInfo("PebblePlugin")
+            val lastBg = iobCobCalculator.ads.lastBg()
+            val trendOrdinal = lastBg?.trendArrow?.ordinal ?: TrendArrow.NONE.ordinal
             
             val data = EnrichedData(
                 bg = bgStatus?.glucose,
-                trend = bgStatus?.delta?.toInt(),
-                iob = iobTotal.iob,
-                cob = cobInfo.displayCob ?: 0.0,
+                trend = trendOrdinal,
                 time = System.currentTimeMillis()
             )
             

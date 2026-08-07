@@ -14,12 +14,10 @@ class PebbleDataMapperTest {
     private val mapper = PebbleDataMapper(logger)
 
     @Test
-    fun testMap_populatesBgTrendIobCob() {
+    fun testMap_populatesBgTrendTime_withCorrectTrendArrow() {
         val data = EnrichedData(
             bg = 120.0,
             trend = 1,
-            iob = 1.5,
-            cob = 20.0,
             time = 123456789000L // 123456789 seconds in millis
         )
 
@@ -27,26 +25,9 @@ class PebbleDataMapperTest {
 
         assertEquals(120, dict.getInteger(PebbleKeys.BG))
         assertEquals(1.toLong(), dict.getInteger(PebbleKeys.TREND))
-        assertEquals(150.toLong(), dict.getInteger(PebbleKeys.IOB))
-        assertEquals(2000.toLong(), dict.getInteger(PebbleKeys.COB))
-        // Verify time is now in seconds (Step 2 update)
+        assertNull(dict.getInteger(PebbleKeys.IOB))
+        assertNull(dict.getInteger(PebbleKeys.COB))
         assertEquals(123456789L, dict.getInteger(PebbleKeys.TIME))
-    }
-
-    @Test
-    fun testMap_scalesFloatingPointValues() {
-        val data = EnrichedData(
-            bg = 100.0,
-            trend = 0,
-            iob = 1.234,
-            cob = 10.5,
-            time = 123456789000L
-        )
-
-        val dict = mapper.map(data)
-
-        assertEquals(123.toLong(), dict.getInteger(PebbleKeys.IOB))
-        assertEquals(1050.toLong(), dict.getInteger(PebbleKeys.COB))
     }
 
     @Test
@@ -54,8 +35,6 @@ class PebbleDataMapperTest {
         val data = EnrichedData(
             bg = null,
             trend = null,
-            iob = null,
-            cob = null,
             time = 123456789000L
         )
 

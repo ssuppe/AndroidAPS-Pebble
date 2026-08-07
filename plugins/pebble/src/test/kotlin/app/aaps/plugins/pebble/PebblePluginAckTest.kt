@@ -1,6 +1,7 @@
 package app.aaps.plugins.pebble
 
 import android.content.Context
+import android.content.SharedPreferences
 import app.aaps.core.interfaces.iob.GlucoseStatusProvider
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
@@ -34,6 +35,7 @@ class PebblePluginAckTest {
     private val glucoseStatusProvider: GlucoseStatusProvider = mock()
     private val transport: IPebbleTransport = mock()
     private val uuidProvider: TargetUuidProvider = mock()
+    private val prefs: SharedPreferences = mock()
     private val mapper: PebbleDataMapper = mock()
     private val fabricPrivacy: FabricPrivacy = mock()
 
@@ -63,7 +65,8 @@ class PebblePluginAckTest {
             transport,
             uuidProvider,
             mapper,
-            fabricPrivacy
+            fabricPrivacy,
+            prefs
         )
     }
 

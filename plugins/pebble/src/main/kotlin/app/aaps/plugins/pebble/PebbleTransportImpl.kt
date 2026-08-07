@@ -15,7 +15,7 @@ class PebbleTransportImpl @Inject constructor(
     private val aapsLogger: AAPSLogger
 ) : IPebbleTransport {
     override fun sendData(context: Context, uuid: UUID, data: PebbleDictionary) {
-        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Calling PebbleKit.sendDataToPebble for UUID: {}", uuid)
+        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Calling PebbleKit.sendDataToPebble for UUID: {} with payload: {}", uuid, data.toJsonString())
         try {
             PebbleKit.sendDataToPebble(context, uuid, data)
             aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: PebbleKit.sendDataToPebble called successfully")
@@ -49,17 +49,21 @@ class PebbleTransportImpl @Inject constructor(
     }
 
     override fun unregisterReceiver(context: Context, receiver: BroadcastReceiver) {
-        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Unregistering receiver")
+        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Unregistering receiver: {}", receiver)
         try {
             context.unregisterReceiver(receiver)
+            aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Receiver unregistered successfully")
         } catch (e: Exception) {
             aapsLogger.warn(LTag.PEBBLE, "PebbleTransportImpl: Error unregistering receiver: {}", e.message)
         }
     }
 
     override fun isWatchConnected(context: Context): Boolean {
+        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Checking isWatchConnected status")
         return try {
-            PebbleKit.isWatchConnected(context)
+            val connected = PebbleKit.isWatchConnected(context)
+            aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: isWatchConnected returned: {}", connected)
+            connected
         } catch (e: Exception) {
             aapsLogger.warn(LTag.PEBBLE, "PebbleTransportImpl: Error checking watch connection: {}", e.message)
             false

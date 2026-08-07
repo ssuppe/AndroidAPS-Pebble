@@ -22,16 +22,6 @@ class PebbleDataMapper @Inject constructor(
             dict.addInt32(PebbleKeys.TREND, it) 
             aapsLogger.debug(LTag.PEBBLE, "PebbleDataMapper: Added Trend: {}", it)
         }
-        data.iob?.let { 
-            val scaled = (it * 100).toInt()
-            dict.addInt32(PebbleKeys.IOB, scaled)
-            aapsLogger.debug(LTag.PEBBLE, "PebbleDataMapper: Added IOB (scaled): {}", scaled)
-        }
-        data.cob?.let { 
-            val scaled = (it * 100).toInt()
-            dict.addInt32(PebbleKeys.COB, scaled)
-            aapsLogger.debug(LTag.PEBBLE, "PebbleDataMapper: Added COB (scaled): {}", scaled)
-        }
         dict.addInt32(PebbleKeys.TIME, (data.time / 1000).toInt())
         aapsLogger.debug(LTag.PEBBLE, "PebbleDataMapper: Added Time (seconds): {}", (data.time / 1000).toInt())
         return dict
