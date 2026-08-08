@@ -36,4 +36,4 @@ wear/pumpcontrol/*
 .aider*
 .venv*
 .claude/CLAUDE_COMMANDS.md
-
+.agents/*
