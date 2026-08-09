@@ -21,8 +21,16 @@ import java.util.UUID
 
 import app.aaps.core.interfaces.rx.events.EventLoopUpdateGui
 import io.reactivex.rxjava3.core.Observable
-
 import android.content.BroadcastReceiver
+import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.interfaces.db.ProcessedTbrEbData
+import app.aaps.core.interfaces.configuration.Config
+import app.aaps.core.interfaces.utils.DecimalFormatter
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.keys.UnitDoubleKey
+import app.aaps.core.interfaces.profile.Profile
 
 class PebblePluginAckTest {
 
@@ -39,6 +47,13 @@ class PebblePluginAckTest {
     private val mapper: PebbleDataMapper = mock()
     private val fabricPrivacy: FabricPrivacy = mock()
 
+    private val profileFunction = mock<ProfileFunction>()
+    private val profileUtil = mock<ProfileUtil>()
+    private val preferences = mock<Preferences>()
+    private val processedTbrEbData = mock<ProcessedTbrEbData>()
+    private val config = mock<Config>()
+    private val decimalFormatter = mock<DecimalFormatter>()
+
     private lateinit var plugin: PebblePlugin
 
     @BeforeEach
@@ -54,6 +69,13 @@ class PebblePluginAckTest {
         // Default to connected for existing tests
         whenever(transport.isWatchConnected(any())).thenReturn(true)
 
+        whenever(config.appInitialized).thenReturn(true)
+        val profile = mock<Profile>()
+        whenever(profile.getBasal()).thenReturn(0.90)
+        whenever(profileFunction.getProfile()).thenReturn(profile)
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
+        whenever(preferences.get(any<UnitDoubleKey>())).thenReturn(70.0)
+
         plugin = PebblePlugin(
             aapsLogger,
             rh,
@@ -66,7 +88,13 @@ class PebblePluginAckTest {
             uuidProvider,
             mapper,
             fabricPrivacy,
-            prefs
+            prefs,
+            profileFunction,
+            profileUtil,
+            preferences,
+            processedTbrEbData,
+            config,
+            decimalFormatter
         )
     }
 

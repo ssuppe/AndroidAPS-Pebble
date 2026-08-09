@@ -21,6 +21,19 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
 import javax.inject.Inject
 import javax.inject.Singleton
+import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.keys.interfaces.Preferences
+import app.aaps.core.interfaces.db.ProcessedTbrEbData
+import app.aaps.core.interfaces.configuration.Config
+import app.aaps.core.interfaces.utils.DecimalFormatter
+import app.aaps.core.data.configuration.Constants
+import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.keys.UnitDoubleKey
+import app.aaps.core.objects.extensions.round
+import app.aaps.core.objects.extensions.toStringShort
+import app.aaps.core.objects.extensions.generateCOBString
+import kotlin.math.abs
 
 @Singleton
 class PebblePlugin @Inject constructor(
@@ -35,7 +48,13 @@ class PebblePlugin @Inject constructor(
     private val uuidProvider: TargetUuidProvider,
     private val mapper: PebbleDataMapper,
     private val fabricPrivacy: FabricPrivacy,
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val profileFunction: ProfileFunction,
+    private val profileUtil: ProfileUtil,
+    private val preferences: Preferences,
+    private val processedTbrEbData: ProcessedTbrEbData,
+    private val config: Config,
+    private val decimalFormatter: DecimalFormatter
 ) : PluginBase(
     PluginDescription()
         .mainType(PluginType.SYNC)
@@ -123,11 +142,73 @@ class PebblePlugin @Inject constructor(
             val bgStatus = glucoseStatusProvider.getGlucoseStatusData()
             val lastBg = iobCobCalculator.ads.lastBg()
             val trendOrdinal = lastBg?.trendArrow?.ordinal ?: TrendArrow.NONE.ordinal
-            
+
+            val profile = profileFunction.getProfile()
+            var iobSum: String? = null
+            var iobDetail: String? = null
+            var cobString: String? = null
+            var currentBasal: String? = null
+            var delta: String? = null
+            var avgDelta: String? = null
+            var lowLine = 70
+            var highLine = 180
+            val units = profileFunction.getUnits()
+            val unitsValue = if (units == GlucoseUnit.MGDL) 0 else 1
+
+            if (config.appInitialized && profile != null) {
+                // 1. IOB (Bolus + Basal)
+                val bolusIob = iobCobCalculator.calculateIobFromBolus().round()
+                val basalIob = iobCobCalculator.calculateIobFromTempBasalsIncludingConvertedExtended().round()
+                iobSum = decimalFormatter.to2Decimal(bolusIob.iob + basalIob.basaliob) + " U"
+                iobDetail = "(${decimalFormatter.to2Decimal(bolusIob.iob)}|${decimalFormatter.to2Decimal(basalIob.basaliob)})"
+
+                // 2. COB
+                cobString = iobCobCalculator.getCobInfo("WatcherUpdaterService").generateCOBString(decimalFormatter)
+
+                // 3. Basal Rate
+                currentBasal = processedTbrEbData.getTempBasalIncludingConvertedExtended(System.currentTimeMillis())?.toStringShort(rh) 
+                    ?: decimalFormatter.to2Decimal(profile.getBasal())
+
+                // 4. Targets
+                lowLine = profileUtil.convertToMgdl(preferences.get(UnitDoubleKey.OverviewLowMark), units).toInt()
+                highLine = profileUtil.convertToMgdl(preferences.get(UnitDoubleKey.OverviewHighMark), units).toInt()
+
+                // 5. Delta & Avg Delta
+                val glucoseStatus = glucoseStatusProvider.getGlucoseStatusData(true)
+                if (glucoseStatus != null) {
+                    delta = deltaString(glucoseStatus.delta, glucoseStatus.delta * Constants.MGDL_TO_MMOLL, units)
+                    avgDelta = deltaString(glucoseStatus.shortAvgDelta, glucoseStatus.shortAvgDelta * Constants.MGDL_TO_MMOLL, units)
+                }
+            }
+
+            // 6. Glucose History (36-point BG/2 array scaled and right-aligned)
+            val readings = iobCobCalculator.ads.getBgReadingsDataTableCopy()
+            val sortedReadings = readings.filter { it.isValid }.sortedByDescending { it.timestamp }
+
+            val historySize = minOf(sortedReadings.size, 36)
+            val historyBytes = ByteArray(36) { 0.toByte() }
+
+            for (i in 0 until historySize) {
+                val reading = sortedReadings[i]
+                val targetIndex = 36 - 1 - i
+                val scaledValue = (reading.value / 2).toInt().coerceIn(0, 255)
+                historyBytes[targetIndex] = scaledValue.toByte()
+            }
+
             val data = EnrichedData(
                 bg = bgStatus?.glucose,
                 trend = trendOrdinal,
-                time = System.currentTimeMillis()
+                time = System.currentTimeMillis(),
+                iob = iobSum,
+                cob = cobString,
+                basal = currentBasal,
+                iobDetail = iobDetail,
+                delta = delta,
+                avgDelta = avgDelta,
+                history = historyBytes,
+                lowTarget = lowLine,
+                highTarget = highLine,
+                units = unitsValue
             )
             
             aapsLogger.debug(LTag.PEBBLE, "PebblePlugin: EnrichedData: {}", data)
@@ -141,5 +222,15 @@ class PebblePlugin @Inject constructor(
             aapsLogger.error(LTag.PEBBLE, "PebblePlugin: Failed to send data", e)
             fabricPrivacy.logException(e)
         }
+    }
+
+    private fun deltaString(deltaMGDL: Double, deltaMMOL: Double, units: GlucoseUnit): String {
+        var deltaStr = if (deltaMGDL >= 0) "+" else "-"
+        deltaStr += if (units == GlucoseUnit.MGDL) {
+            decimalFormatter.to0Decimal(abs(deltaMGDL))
+        } else {
+            decimalFormatter.to1Decimal(abs(deltaMMOL))
+        }
+        return deltaStr
     }
 }
