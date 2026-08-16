@@ -6,7 +6,7 @@ This repository is a fork of [AndroidAPS](https://github.com/nightscout/AndroidA
 * **Pebble Plugin Expansion**: Expands the `plugins:pebble` module to pack and transmit rich status dictionary payloads via PebbleKit (`AppMessage`).
 * **Enriched Data**: Transmits blood glucose, trend arrows, IOB, COB, basal rates, deltas, target ranges, and historical BG data for graph rendering on the watch.
 * **Mirrored Design**: The data extraction and mapping logic intentionally mirrors the existing `plugins:wear` (Wear OS) module design to maintain consistency and minimize complexity.
-* **Target Watchface**: Designed to work in tandem with the **PebbleAAPS** watchface on the Pebble App Store (currently unpublished / in development).
+* **Target Watchface**: Designed to work in tandem with the **PebbleAAPS** watchface on the Pebble App Store (currently unpublished / in development). (Pebble watchface UUID can be changed in AAPS Pebble Plugin to use others).
 * **Minimal Scope**: No changes have been made to core looping, safety checks, or pump driver logic outside of the Pebble companion plugin.
 
 ### AI Assistance & Testing
