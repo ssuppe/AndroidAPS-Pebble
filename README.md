@@ -9,6 +9,16 @@ This repository is a fork of [AndroidAPS](https://github.com/nightscout/AndroidA
 * **Target Watchface**: Designed to work in tandem with the **PebbleAAPS** watchface on the Pebble App Store (currently unpublished / in development).
 * **Minimal Scope**: No changes have been made to core looping, safety checks, or pump driver logic outside of the Pebble companion plugin.
 
+### AI Assistance & Testing
+This fork was developed with AI assistance and personally tested.
+
+### Disclaimer
+All information and code described here is for informational and educational purposes only. Use Nightscout and AAPS at your own risk, and do not use the information or code to make medical decisions. Nightscout currently makes no attempt at HIPAA privacy compliance.
+
+Use of code from github.com is without warranty or formal support of any kind. Please review this repository’s LICENSE for details.
+
+All product and company names, trademarks, servicemarks, registered trademarks, and registered servicemarks are the property of their respective holders. Their use is for information purposes and does not imply any affiliation with or endorsement by them.
+
 ---
 
 # AAPS
