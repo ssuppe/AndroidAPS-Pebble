@@ -13,7 +13,7 @@ This repository is a fork of [AndroidAPS](https://github.com/nightscout/AndroidA
 This fork was developed with AI assistance and personally tested.
 
 ### Disclaimer
-All information and code described here is for informational and educational purposes only. Use Nightscout and AAPS at your own risk, and do not use the information or code to make medical decisions. Nightscout currently makes no attempt at HIPAA privacy compliance.
+All information and code described here—including this Pebble plugin and any watchfaces or code that communicates with it—is for informational and educational purposes only. Use Nightscout and AAPS at your own risk, and do not use the information or code to make medical decisions. Nightscout currently makes no attempt at HIPAA privacy compliance.
 
 Use of code from github.com is without warranty or formal support of any kind. Please review this repository’s LICENSE for details.
 
