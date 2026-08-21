@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -72,7 +73,6 @@ class PebbleCommandProcessorTest {
         whenever(pumpPlugin.pumpDescription).thenReturn(pumpDescription)
         whenever(activePlugin.activePump).thenReturn(pumpPlugin)
 
-
         whenever(profileFunction.getProfile()).thenReturn(profile)
         whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MGDL)
         whenever(decimalFormatter.to2Decimal(any())).thenReturn("1.50")
@@ -85,8 +85,9 @@ class PebbleCommandProcessorTest {
         whenever(constraintChecker.applyCarbsConstraints(any())).thenAnswer { invocation ->
             invocation.getArgument(0) as ConstraintObject<Int>
         }
-        whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), any(), any())).thenReturn(Single.just(mock()))
-        whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), any(), any())).thenReturn(Single.just(mock()))
+        whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), anyOrNull(), any())).thenReturn(Single.just(mock()))
+        whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), anyOrNull(), any())).thenReturn(Single.just(mock()))
+
 
 
 
@@ -149,7 +150,7 @@ class PebbleCommandProcessorTest {
 
         processor.processCommand(context, controllerUuid, 789, dict)
 
-        verify(persistenceLayer).cancelTempTargets(any())
+        verify(persistenceLayer).cancelCurrentTemporaryTargetIfAny(any(), any(), any(), anyOrNull(), any())
         val captor = argumentCaptor<PebbleDictionary>()
         verify(transport).sendData(eq(context), eq(controllerUuid), captor.capture())
         assertEquals(0, captor.firstValue.getInteger(PebbleKeys.KEY_STATUS_CODE)?.toInt())
@@ -168,9 +169,11 @@ class PebbleCommandProcessorTest {
 
         processor.processCommand(context, controllerUuid, 101, dict)
 
-        verify(persistenceLayer).setTempTarget(any())
+        verify(persistenceLayer).insertAndCancelCurrentTemporaryTarget(any(), any(), any(), anyOrNull(), any())
+
         val captor = argumentCaptor<PebbleDictionary>()
         verify(transport).sendData(eq(context), eq(controllerUuid), captor.capture())
         assertEquals(0, captor.firstValue.getInteger(PebbleKeys.KEY_STATUS_CODE)?.toInt())
     }
+
 }

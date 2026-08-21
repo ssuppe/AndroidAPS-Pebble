@@ -179,18 +179,20 @@ class PebblePluginTest {
         // Trigger preference change for target UUID key
         listener.onSharedPreferenceChanged(prefs, "pebble_app_uuid")
         
-        // onStart registers 1 ACK and 1 NACK handler.
-        // onSharedPreferenceChanged unregisters the 2 active receivers and registers 2 new ones.
+        // onStart registers 1 ACK, 1 NACK, and 1 Data handler.
+        // onSharedPreferenceChanged unregisters the 3 active receivers and registers 3 new ones.
         verify(transport, times(2)).registerAckHandler(any(), any(), any())
         verify(transport, times(2)).registerNackHandler(any(), any(), any())
-        verify(transport, times(2)).unregisterReceiver(any(), any())
+        verify(transport, times(2)).registerDataHandler(any(), any(), any())
+        verify(transport, times(3)).unregisterReceiver(any(), any())
         
         plugin.onStop()
         
         verify(prefs).unregisterOnSharedPreferenceChangeListener(eq(listener))
-        // onStop unregisters the 2 active receivers. Total unregister calls = 4
-        verify(transport, times(4)).unregisterReceiver(any(), any())
+        // onStop unregisters the 3 active receivers. Total unregister calls = 6
+        verify(transport, times(6)).unregisterReceiver(any(), any())
     }
+
 
     @Test
     fun testSendData_extractsAndSendsAllEnrichedMetrics() {
