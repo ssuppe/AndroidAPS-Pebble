@@ -112,7 +112,29 @@ class PebbleCommandProcessorTest {
     }
 
     @Test
+    fun testCalculateBolus_convertsMmolInputToMmolUserUnits() {
+        whenever(profileFunction.getUnits()).thenReturn(GlucoseUnit.MMOL)
+        whenever(bolusWizard.calculatedTotalInsulin).thenReturn(1.5)
+
+        val controllerUuid = UUID.randomUUID()
+        val dict = PebbleDictionary().apply {
+            addInt32(PebbleKeys.KEY_CMD_TYPE, 1) // CALCULATE_BOLUS
+            addInt32(PebbleKeys.KEY_TRANS_ID, 202)
+            addInt32(PebbleKeys.KEY_CARBS, 30)
+            addInt32(PebbleKeys.KEY_BG, 6) // 6.0 mmol/L (< 35)
+        }
+
+        processor.processCommand(context, controllerUuid, 202, dict)
+
+        val captor = argumentCaptor<PebbleDictionary>()
+        verify(transport).sendData(eq(context), eq(controllerUuid), captor.capture())
+        assertEquals(1, captor.firstValue.getInteger(PebbleKeys.KEY_STATUS_CODE)?.toInt()) // PENDING_CONFIRMATION
+        assertEquals(150, captor.firstValue.getInteger(PebbleKeys.KEY_CALC_RESULT)?.toInt())
+    }
+
+    @Test
     fun testSnoozeAlarm_callsUiInteraction() {
+
         val controllerUuid = UUID.randomUUID()
         val dict = PebbleDictionary()
         dict.addInt32(PebbleKeys.KEY_CMD_TYPE, 5) // SNOOZE_ALARM
