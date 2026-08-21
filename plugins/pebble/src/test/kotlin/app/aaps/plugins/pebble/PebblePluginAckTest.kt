@@ -52,9 +52,11 @@ class PebblePluginAckTest {
     private val preferences = mock<Preferences>()
     private val processedTbrEbData = mock<ProcessedTbrEbData>()
     private val config = mock<Config>()
+    private val decimalFormatter = mock<DecimalFormatter>()
     private val commandProcessor = mock<PebbleCommandProcessor>()
 
     private lateinit var plugin: PebblePlugin
+
 
     @BeforeEach
     fun setUp() {

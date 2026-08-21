@@ -2,18 +2,18 @@ package app.aaps.plugins.pebble
 
 import android.content.Context
 import app.aaps.core.data.model.GlucoseUnit
-import app.aaps.core.data.model.PumpDescription
-import app.aaps.core.data.model.PumpType
+import app.aaps.core.data.pump.defs.PumpDescription
+import app.aaps.core.data.pump.defs.PumpType
 import app.aaps.core.interfaces.constraints.ConstraintsChecker
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.iob.IobCobCalculator
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.UserEntryLogger
 import app.aaps.core.interfaces.plugin.ActivePlugin
-import app.aaps.core.interfaces.plugin.PumpPlugin
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.interfaces.pump.Pump
 import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.ui.UiInteraction
@@ -25,6 +25,7 @@ import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.constraints.ConstraintObject
 import app.aaps.core.objects.wizard.BolusWizard
 import com.getpebble.android.kit.util.PebbleDictionary
+import io.reactivex.rxjava3.core.Single
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -43,7 +44,7 @@ class PebbleCommandProcessorTest {
     private val bolusWizard: BolusWizard = mock()
     private val constraintChecker: ConstraintsChecker = mock()
     private val activePlugin: ActivePlugin = mock()
-    private val pumpPlugin: PumpPlugin = mock()
+    private val pumpPlugin: Pump = mock()
     private val pumpDescription: PumpDescription = mock()
     private val persistenceLayer: PersistenceLayer = mock()
     private val profileFunction: ProfileFunction = mock()
@@ -83,8 +84,9 @@ class PebbleCommandProcessorTest {
         whenever(constraintChecker.applyCarbsConstraints(any())).thenAnswer { invocation ->
             invocation.getArgument(0) as ConstraintObject<Int>
         }
-        whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), any(), any())).thenReturn(io.reactivex.rxjava3.core.Completable.complete())
-        whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), any(), any())).thenReturn(io.reactivex.rxjava3.core.Completable.complete())
+        whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), any(), any())).thenReturn(Single.just(mock()))
+        whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), any(), any())).thenReturn(Single.just(mock()))
+
 
 
         processor = PebbleCommandProcessor(
