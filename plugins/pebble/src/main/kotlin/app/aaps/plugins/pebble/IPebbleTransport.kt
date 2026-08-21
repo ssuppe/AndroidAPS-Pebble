@@ -9,6 +9,9 @@ interface IPebbleTransport {
     fun sendData(context: Context, uuid: UUID, data: PebbleDictionary)
     fun registerAckHandler(context: Context, uuid: UUID, onAck: (Int) -> Unit): BroadcastReceiver
     fun registerNackHandler(context: Context, uuid: UUID, onNack: (Int) -> Unit): BroadcastReceiver
+    fun registerDataHandler(context: Context, uuid: UUID, onData: (transactionId: Int, dict: PebbleDictionary) -> Unit): BroadcastReceiver
+    fun sendAckToPebble(context: Context, transactionId: Int)
     fun unregisterReceiver(context: Context, receiver: BroadcastReceiver)
     fun isWatchConnected(context: Context): Boolean
 }
+

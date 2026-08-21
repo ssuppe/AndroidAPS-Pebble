@@ -48,6 +48,35 @@ class PebbleTransportImpl @Inject constructor(
         return receiver
     }
 
+    override fun registerDataHandler(
+        context: Context,
+        uuid: UUID,
+        onData: (transactionId: Int, dict: PebbleDictionary) -> Unit
+    ): BroadcastReceiver {
+        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Registering PebbleDataReceiver for UUID: {}", uuid)
+        val receiver = object : PebbleKit.PebbleDataReceiver(uuid) {
+            override fun receiveData(context: Context?, transactionId: Int, dict: PebbleDictionary?) {
+                aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Received data for transactionId: {}", transactionId)
+                context?.let { sendAckToPebble(it, transactionId) }
+                if (dict != null) {
+                    onData(transactionId, dict)
+                }
+            }
+        }
+        PebbleKit.registerReceivedDataHandler(context, receiver)
+        return receiver
+    }
+
+    override fun sendAckToPebble(context: Context, transactionId: Int) {
+        aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Sending ACK for transactionId: {}", transactionId)
+        try {
+            PebbleKit.sendAckToPebble(context, transactionId)
+        } catch (e: Exception) {
+            aapsLogger.error(LTag.PEBBLE, "PebbleTransportImpl: Error sending ACK", e)
+        }
+    }
+
+
     override fun unregisterReceiver(context: Context, receiver: BroadcastReceiver) {
         aapsLogger.debug(LTag.PEBBLE, "PebbleTransportImpl: Unregistering receiver: {}", receiver)
         try {
