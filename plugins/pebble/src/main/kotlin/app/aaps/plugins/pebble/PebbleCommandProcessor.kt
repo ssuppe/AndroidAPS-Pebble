@@ -78,6 +78,11 @@ class PebbleCommandProcessor @Inject constructor(
     }
 
     private fun handleCalculateBolus(context: Context, controllerUuid: UUID, transactionId: Int, dict: PebbleDictionary) {
+        if (!activePlugin.activePump.isInitialized()) {
+            sendErrorResponse(context, controllerUuid, transactionId, 1, "Pump not available")
+            return
+        }
+
         val carbsInput = dict.getInteger(PebbleKeys.KEY_CARBS)?.toInt() ?: 0
         val percentage = dict.getInteger(PebbleKeys.KEY_PERCENTAGE)?.toInt() ?: 100
         val rawBgInput = dict.getInteger(PebbleKeys.KEY_BG)?.toDouble()
@@ -86,6 +91,7 @@ class PebbleCommandProcessor @Inject constructor(
             sendErrorResponse(context, controllerUuid, transactionId, 1, "No active profile")
             return
         }
+
 
         val carbsAfterConstraints = constraintChecker.applyCarbsConstraints(ConstraintObject(carbsInput, aapsLogger)).value()
         val bgValue = if (rawBgInput != null) {
@@ -136,7 +142,13 @@ class PebbleCommandProcessor @Inject constructor(
     }
 
     private fun handleConfirmBolus(context: Context, controllerUuid: UUID, transactionId: Int, dict: PebbleDictionary) {
+        if (!activePlugin.activePump.isInitialized()) {
+            sendErrorResponse(context, controllerUuid, transactionId, 2, "Pump not available")
+            return
+        }
+
         val insulinRaw = dict.getInteger(PebbleKeys.KEY_INSULIN_AMOUNT)?.toDouble() ?: 0.0
+
         val amount = insulinRaw / 100.0
         val carbs = dict.getInteger(PebbleKeys.KEY_CARBS)?.toInt() ?: 0
         val carbTimeOffset = dict.getInteger(PebbleKeys.KEY_CARB_TIME_OFFSET)?.toInt() ?: 0
