@@ -68,7 +68,9 @@ class PebbleCommandProcessorTest {
 
     @BeforeEach
     fun setUp() {
+        whenever(bolusWizard.doCalc(any(), any(), anyOrNull(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(bolusWizard)
         whenever(bolusWizardProvider.get()).thenReturn(bolusWizard)
+
         whenever(pumpPlugin.isInitialized()).thenReturn(true)
         whenever(pumpDescription.pumpType).thenReturn(PumpType.GENERIC_AAPS)
         whenever(pumpPlugin.pumpDescription).thenReturn(pumpDescription)
