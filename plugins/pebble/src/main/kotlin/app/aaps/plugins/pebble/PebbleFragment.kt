@@ -32,24 +32,30 @@ class PebbleFragment : DaggerFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val currentUuid = uuidProvider.getTargetUuid().toString()
-        aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: onViewCreated, current UUID: {}", currentUuid)
-        binding.pebbleUuid.setText(currentUuid)
+        val currentWatchfaceUuid = uuidProvider.getTargetUuid().toString()
+        val currentControllerUuid = uuidProvider.getControllerUuid().toString()
+        aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: onViewCreated, Watchface UUID: {}, Controller UUID: {}", currentWatchfaceUuid, currentControllerUuid)
+        binding.pebbleUuid.setText(currentWatchfaceUuid)
+        binding.pebbleControllerUuid.setText(currentControllerUuid)
         
         binding.saveButton.setOnClickListener {
-            val uuidString = binding.pebbleUuid.text.toString().trim()
-            aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: Save button clicked with UUID string: {}", uuidString)
+            val watchfaceUuidString = binding.pebbleUuid.text.toString().trim()
+            val controllerUuidString = binding.pebbleControllerUuid.text.toString().trim()
+            aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: Save button clicked. Watchface: {}, Controller: {}", watchfaceUuidString, controllerUuidString)
             try {
-                java.util.UUID.fromString(uuidString)
-                uuidProvider.saveTargetUuid(uuidString)
-                aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: UUID saved successfully")
+                java.util.UUID.fromString(watchfaceUuidString)
+                java.util.UUID.fromString(controllerUuidString)
+                uuidProvider.saveTargetUuid(watchfaceUuidString)
+                uuidProvider.saveControllerUuid(controllerUuidString)
+                aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: UUIDs saved successfully")
                 ToastUtils.okToast(activity, rh.gs(R.string.pebble_saved))
             } catch (e: IllegalArgumentException) {
-                aapsLogger.warn(LTag.PEBBLE, "PebbleFragment: Invalid UUID format entered: {}", uuidString)
+                aapsLogger.warn(LTag.PEBBLE, "PebbleFragment: Invalid UUID format entered")
                 ToastUtils.errorToast(activity, rh.gs(R.string.pebble_invalid_uuid))
             }
         }
     }
+
 
     override fun onDestroyView() {
         aapsLogger.debug(LTag.PEBBLE, "PebbleFragment: onDestroyView")
