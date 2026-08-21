@@ -89,11 +89,12 @@ class PebbleCommandProcessor @Inject constructor(
 
         val carbsAfterConstraints = constraintChecker.applyCarbsConstraints(ConstraintObject(carbsInput, aapsLogger)).value()
         val bgValue = if (rawBgInput != null) {
-            if (profileFunction.getUnits() == GlucoseUnit.MMOLL && rawBgInput < 35) {
+            if (profileFunction.getUnits() == GlucoseUnit.MMOL && rawBgInput < 35) {
                 rawBgInput * Constants.MMOLL_TO_MGDL
             } else {
                 rawBgInput
             }
+
         } else {
             iobCobCalculator.ads.actualBg()?.valueToUnits(profileFunction.getUnits()) ?: 100.0
         }
