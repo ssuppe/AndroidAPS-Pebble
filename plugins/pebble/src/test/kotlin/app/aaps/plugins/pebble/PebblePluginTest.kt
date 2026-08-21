@@ -61,6 +61,7 @@ class PebblePluginTest {
     private val processedTbrEbData = mock<ProcessedTbrEbData>()
     private val config = mock<Config>()
     private val decimalFormatter = mock<DecimalFormatter>()
+    private val commandProcessor = mock<PebbleCommandProcessor>()
 
     private lateinit var plugin: PebblePlugin
 
@@ -69,8 +70,10 @@ class PebblePluginTest {
         whenever(aapsSchedulers.io).thenReturn(Schedulers.trampoline())
         whenever(rxBus.toObservable(EventLoopUpdateGui::class.java)).thenReturn(Observable.empty())
         whenever(uuidProvider.getTargetUuid()).thenReturn(UUID.randomUUID())
+        whenever(uuidProvider.getControllerUuid()).thenReturn(UUID.randomUUID())
         whenever(transport.registerAckHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
         whenever(transport.registerNackHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
+        whenever(transport.registerDataHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
         
         whenever(config.appInitialized).thenReturn(true)
         val profile = mock<Profile>()
@@ -93,9 +96,10 @@ class PebblePluginTest {
         plugin = PebblePlugin(
             aapsLogger, rh, aapsSchedulers, rxBus, context,
             iobCobCalculator, glucoseStatusProvider, transport, uuidProvider, mapper, fabricPrivacy, prefs,
-            profileFunction, profileUtil, preferences, processedTbrEbData, config, decimalFormatter
+            profileFunction, profileUtil, preferences, processedTbrEbData, config, decimalFormatter, commandProcessor
         )
     }
+
 
     @Test
     fun testOnEvent_mapsData_andSendsToTransport() {

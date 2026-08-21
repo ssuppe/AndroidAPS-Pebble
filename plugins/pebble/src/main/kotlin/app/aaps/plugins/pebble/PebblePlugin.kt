@@ -54,7 +54,8 @@ class PebblePlugin @Inject constructor(
     private val preferences: Preferences,
     private val processedTbrEbData: ProcessedTbrEbData,
     private val config: Config,
-    private val decimalFormatter: DecimalFormatter
+    private val decimalFormatter: DecimalFormatter,
+    private val commandProcessor: PebbleCommandProcessor
 ) : PluginBase(
     PluginDescription()
         .mainType(PluginType.SYNC)
@@ -68,10 +69,11 @@ class PebblePlugin @Inject constructor(
     private val disposable = CompositeDisposable()
     private var ackReceiver: BroadcastReceiver? = null
     private var nackReceiver: BroadcastReceiver? = null
+    private var commandReceiver: BroadcastReceiver? = null
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "pebble_app_uuid") {
-            aapsLogger.info(LTag.PEBBLE, "PebblePlugin: Target UUID changed. Re-registering receivers.")
+        if (key == TargetUuidProvider.PREF_PEBBLE_UUID || key == TargetUuidProvider.PREF_PEBBLE_CONTROLLER_UUID) {
+            aapsLogger.info(LTag.PEBBLE, "PebblePlugin: Target or Controller UUID changed. Re-registering receivers.")
             unregisterReceivers()
             registerReceivers()
         }
@@ -105,14 +107,20 @@ class PebblePlugin @Inject constructor(
 
     private fun registerReceivers() {
         try {
-            val uuid = uuidProvider.getTargetUuid()
+            val watchfaceUuid = uuidProvider.getTargetUuid()
+            val controllerUuid = uuidProvider.getControllerUuid()
             
-            ackReceiver = transport.registerAckHandler(context, uuid) { transactionId ->
+            ackReceiver = transport.registerAckHandler(context, watchfaceUuid) { transactionId ->
                 aapsLogger.info(LTag.PEBBLE, "PebblePlugin: ACK received for transaction {}", transactionId)
             }
 
-            nackReceiver = transport.registerNackHandler(context, uuid) { transactionId ->
+            nackReceiver = transport.registerNackHandler(context, watchfaceUuid) { transactionId ->
                 aapsLogger.warn(LTag.PEBBLE, "PebblePlugin: NACK received for transaction {}", transactionId)
+            }
+
+            commandReceiver = transport.registerDataHandler(context, controllerUuid) { transactionId, dict ->
+                aapsLogger.info(LTag.PEBBLE, "PebblePlugin: Received command dictionary on Controller UUID")
+                commandProcessor.processCommand(context, controllerUuid, transactionId, dict)
             }
         } catch (e: Exception) {
             aapsLogger.error(LTag.PEBBLE, "PebblePlugin: Error registering receivers", e)
@@ -128,7 +136,12 @@ class PebblePlugin @Inject constructor(
             transport.unregisterReceiver(context, it)
             nackReceiver = null
         }
+        commandReceiver?.let {
+            transport.unregisterReceiver(context, it)
+            commandReceiver = null
+        }
     }
+
 
     private fun sendData() {
         try {

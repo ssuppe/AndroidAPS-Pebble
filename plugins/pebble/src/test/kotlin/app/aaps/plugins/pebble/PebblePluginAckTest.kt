@@ -52,7 +52,7 @@ class PebblePluginAckTest {
     private val preferences = mock<Preferences>()
     private val processedTbrEbData = mock<ProcessedTbrEbData>()
     private val config = mock<Config>()
-    private val decimalFormatter = mock<DecimalFormatter>()
+    private val commandProcessor = mock<PebbleCommandProcessor>()
 
     private lateinit var plugin: PebblePlugin
 
@@ -60,11 +60,13 @@ class PebblePluginAckTest {
     fun setUp() {
         whenever(aapsSchedulers.io).thenReturn(Schedulers.trampoline())
         whenever(uuidProvider.getTargetUuid()).thenReturn(UUID.randomUUID())
+        whenever(uuidProvider.getControllerUuid()).thenReturn(UUID.randomUUID())
         whenever(rxBus.toObservable(EventLoopUpdateGui::class.java)).thenReturn(Observable.empty())
         
         // Mock the transport to return a dummy receiver so the plugin stores it
         whenever(transport.registerAckHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
         whenever(transport.registerNackHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
+        whenever(transport.registerDataHandler(any(), any(), any())).thenReturn(mock<BroadcastReceiver>())
         
         // Default to connected for existing tests
         whenever(transport.isWatchConnected(any())).thenReturn(true)
@@ -94,7 +96,8 @@ class PebblePluginAckTest {
             preferences,
             processedTbrEbData,
             config,
-            decimalFormatter
+            decimalFormatter,
+            commandProcessor
         )
     }
 
@@ -104,19 +107,16 @@ class PebblePluginAckTest {
 
         verify(transport).registerAckHandler(any(), any(), any())
         verify(transport).registerNackHandler(any(), any(), any())
+        verify(transport).registerDataHandler(any(), any(), any())
     }
 
     @Test
     fun testOnStop_unregistersHandlers() {
-        // We assume the transport implementation might return a receiver object that needs unregistering, 
-        // or we might just verify a generic 'unregister' call if we abstract it that way.
-        // For now, let's assume the abstraction handles the receiver instance management internally 
-        // or via a returned handle. Let's start simple: the transport should have an unregister method.
-        
         plugin.onStart() // Start first to register
         plugin.onStop()
 
-        // Should be called twice, once for ACK receiver and once for NACK receiver
-        verify(transport, org.mockito.kotlin.times(2)).unregisterReceiver(any(), any())
+        // Should be called 3 times: ACK, NACK, Data receivers
+        verify(transport, org.mockito.kotlin.times(3)).unregisterReceiver(any(), any())
     }
 }
+
