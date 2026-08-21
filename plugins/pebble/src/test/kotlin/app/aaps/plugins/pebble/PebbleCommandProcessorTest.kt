@@ -83,6 +83,9 @@ class PebbleCommandProcessorTest {
         whenever(constraintChecker.applyCarbsConstraints(any())).thenAnswer { invocation ->
             invocation.getArgument(0) as ConstraintObject<Int>
         }
+        whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), any(), any())).thenReturn(io.reactivex.rxjava3.core.Completable.complete())
+        whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), any(), any())).thenReturn(io.reactivex.rxjava3.core.Completable.complete())
+
 
         processor = PebbleCommandProcessor(
             bolusWizardProvider,

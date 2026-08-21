@@ -3,6 +3,7 @@ package app.aaps.plugins.pebble
 import android.content.Context
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.data.model.GlucoseUnit
+import app.aaps.core.data.model.TT
 import app.aaps.core.data.time.T
 import app.aaps.core.data.ue.Action
 import app.aaps.core.data.ue.Sources
@@ -27,10 +28,11 @@ import app.aaps.core.keys.IntKey
 import app.aaps.core.keys.UnitDoubleKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.objects.constraints.ConstraintObject
-import app.aaps.core.objects.database.TempTarget
+import app.aaps.core.objects.extensions.valueToUnits
 import app.aaps.core.objects.wizard.BolusWizard
 import com.getpebble.android.kit.util.PebbleDictionary
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -178,7 +180,7 @@ class PebbleCommandProcessor @Inject constructor(
                 targetBg = preferences.get(UnitDoubleKey.OverviewHypoTarget)
             }
             4 -> { // CANCEL
-                persistenceLayer.cancelTempTargets(dateUtil.now())
+                cancelTempTarget()
                 sendSuccessResponse(context, controllerUuid, transactionId, 3, "Temp Target Cancelled")
                 return
             }
@@ -188,20 +190,44 @@ class PebbleCommandProcessor @Inject constructor(
             }
         }
 
-        val tt = TempTarget().apply {
-            this.duration = duration
-            this.lowTarget = targetBg
-            this.highTarget = targetBg
-            this.timestamp = dateUtil.now()
-        }
+        val lowMgdl = profileUtil.convertToMgdl(targetBg, profileFunction.getUnits())
+        val highMgdl = lowMgdl
+        val durationMs = TimeUnit.MINUTES.toMillis(duration.toLong())
 
-        persistenceLayer.setTempTarget(tt)
+        persistenceLayer.insertAndCancelCurrentTemporaryTarget(
+            temporaryTarget = TT(
+                timestamp = dateUtil.now(),
+                duration = durationMs,
+                reason = TT.Reason.WEAR,
+                lowTarget = lowMgdl,
+                highTarget = highMgdl
+            ),
+            action = Action.TT,
+            source = Sources.Wear,
+            note = null,
+            listValues = listOfNotNull(
+                ValueWithUnit.TETTReason(TT.Reason.WEAR),
+                ValueWithUnit.fromGlucoseUnit(targetBg, profileFunction.getUnits()),
+                ValueWithUnit.Minute(duration)
+            )
+        ).subscribe()
+
         sendSuccessResponse(context, controllerUuid, transactionId, 3, "Temp Target Set")
     }
 
     private fun handleCancelTempTarget(context: Context, controllerUuid: UUID, transactionId: Int) {
-        persistenceLayer.cancelTempTargets(dateUtil.now())
+        cancelTempTarget()
         sendSuccessResponse(context, controllerUuid, transactionId, 4, "Temp Target Cancelled")
+    }
+
+    private fun cancelTempTarget() {
+        persistenceLayer.cancelCurrentTemporaryTargetIfAny(
+            timestamp = dateUtil.now(),
+            action = Action.CANCEL_TT,
+            source = Sources.Wear,
+            note = null,
+            listValues = listOf(ValueWithUnit.TETTReason(TT.Reason.WEAR))
+        ).subscribe()
     }
 
     private fun handleSnoozeAlarm(context: Context, controllerUuid: UUID, transactionId: Int) {
@@ -226,7 +252,9 @@ class PebbleCommandProcessor @Inject constructor(
             this.carbsTimestamp = eventTime
         }
 
-        commandQueue.bolus(detailedBolusInfo, object : Callback() {})
+        commandQueue.bolus(detailedBolusInfo, object : Callback() {
+            override fun run() {}
+        })
         sendSuccessResponse(context, controllerUuid, transactionId, 7, "eCarbs Logged")
     }
 
@@ -244,7 +272,9 @@ class PebbleCommandProcessor @Inject constructor(
                 ValueWithUnit.Gram(carbs).takeIf { carbs != 0 }
             )
         )
-        commandQueue.bolus(detailedBolusInfo, object : Callback() {})
+        commandQueue.bolus(detailedBolusInfo, object : Callback() {
+            override fun run() {}
+        })
     }
 
     private fun sendSuccessResponse(context: Context, controllerUuid: UUID, transactionId: Int, cmdType: Int, message: String) {
