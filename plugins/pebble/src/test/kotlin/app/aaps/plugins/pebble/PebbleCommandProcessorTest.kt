@@ -1,6 +1,7 @@
 package app.aaps.plugins.pebble
 
 import android.content.Context
+import app.aaps.core.data.iob.CobInfo
 import app.aaps.core.data.model.GlucoseUnit
 import app.aaps.core.data.pump.defs.PumpDescription
 import app.aaps.core.data.pump.defs.PumpType
@@ -79,6 +80,10 @@ class PebbleCommandProcessorTest {
         whenever(rh.gs(any())).thenReturn("Success")
         whenever(dateUtil.now()).thenReturn(1000000L)
 
+        val cobInfo = mock<CobInfo>()
+        whenever(cobInfo.displayCob).thenReturn(0.0)
+        whenever(iobCobCalculator.getCobInfo(any())).thenReturn(cobInfo)
+
         whenever(constraintChecker.applyBolusConstraints(any())).thenAnswer { invocation ->
             invocation.getArgument(0) as ConstraintObject<Double>
         }
@@ -87,6 +92,7 @@ class PebbleCommandProcessorTest {
         }
         whenever(persistenceLayer.insertAndCancelCurrentTemporaryTarget(any(), any(), any(), anyOrNull(), any())).thenReturn(Single.just(mock()))
         whenever(persistenceLayer.cancelCurrentTemporaryTargetIfAny(any(), any(), any(), anyOrNull(), any())).thenReturn(Single.just(mock()))
+
 
 
 
